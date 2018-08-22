@@ -1,3 +1,5 @@
+
+
 #!/usr/bin/env python
 import os
 import os.path
@@ -7,49 +9,59 @@ import numpy as np
 import torch
 import csv
 
-ATTRIBUTES = "Neutral,Happy,Sad,Surprise,Fear,Disgust,Anger,Contempt"
-ATTRIBUTES_FILE = "./attrfile.txt"
-ATTRIBUTES_CSV = 'training.csv'
-IMG_SIZE = 256
-IMG_PATH = 'images_%i_%i.pth' % (IMG_SIZE, IMG_SIZE)
-ATTR_PATH = 'attributes.pth'
-PATH_TO_IMAGES = 'AffectNet/smallBatch/'
+# preprocessing for the KDEF DB
 
+ATTRIBUTES = "Neutral,Happy,Sad,Surprise,Fear,Disgust,Anger,Contempt"
+ATTRIBUTES_FILE = "./attrfile2.txt"
+ATTRIBUTES_CSV = 'training2.csv'
+IMG_SIZE = 256
+IMG_PATH = 'images_%i_%i_2.pth' % (IMG_SIZE, IMG_SIZE)
+ATTR_PATH = 'attributes2.pth'
+PATH_TO_IMAGES = 'KDEF/'
+#N_IMAGES = 4900
+N_IMAGES = 2940
+
+images_names = [['NEHL.JPG', 'HAHL.JPG', 'SAHL.JPG', 'SUHL.JPG', 'AFHL.JPG', 'DIHL.JPG', 'ANHL.JPG'],
+                ['NEHR.JPG', 'HAHR.JPG', 'SAHR.JPG', 'SUHR.JPG', 'AFHR.JPG', 'DIHR.JPG', 'ANHR.JPG'],
+                ['NES.JPG',  'HAS.JPG',  'SAS.JPG',  'SUS.JPG',  'AFS.JPG',  'DIS.JPG',  'ANS.JPG' ]]
+
+
+'''images_names = [['NEFL.JPG', 'HAFL.JPG', 'SAFL.JPG', 'SUFL.JPG', 'AFFL.JPG', 'DIFL.JPG', 'ANFL.JPG'],
+     ['NEHL.JPG', 'HAHL.JPG', 'SAHL.JPG', 'SUHL.JPG', 'AFHL.JPG', 'DIHL.JPG', 'ANHL.JPG'],
+     ['NEHR.JPG', 'HAHR.JPG', 'SAHR.JPG', 'SUHR.JPG', 'AFHR.JPG', 'DIHR.JPG', 'ANHR.JPG'],
+     ['NEFR.JPG', 'HAFR.JPG', 'SAFR.JPG', 'SUFR.JPG', 'AFFR.JPG', 'DIFR.JPG', 'ANFR.JPG'],
+     ['NES.JPG',  'HAS.JPG',  'SAS.JPG',  'SUS.JPG',  'AFS.JPG',  'DIS.JPG',  'ANS.JPG' ]]
+     '''
+
+sessions_id = ["A", "B"]
+genders_id = ["M", "F"]
+
+    
 def create_attributes():
     
     attrFile = open(ATTRIBUTES_FILE, 'w+')
     #attrFile.write(str(N_IMAGES) + '\n')
     attrFile.write(ATTRIBUTES + '\n')
-    attr_count = [0,0,0,0,0,0,0,0]
-    with open(ATTRIBUTES_CSV, 'rb') as csvfile:
-        spamreader = csv.reader(csvfile, delimiter=' ', quotechar='|')
-        count = 0
-        for row in spamreader:
-            rowlst = row[0].split(',')
-            outStr = rowlst[0]
-            
-            ignoreRow = True
-            if not os.path.isfile(PATH_TO_IMAGES+rowlst[0]):
-                #print('AffectNet/Manually_Annotated_Images/'+rowlst[0])
-                continue
-            for i in range(8):
-                outStr += '\t'
-                if str(i) == rowlst[6]:
-                    outStr += "1"
-                    ignoreRow = False
-                    count += 1
-                    attr_count[i] += 1
-                else:
-                    outStr += "-1"
-            if not ignoreRow:
-                attrFile.write(outStr + '\n')
-            #if(count>14000):
-            #    break
-        print attr_count
+    for i in range (1,36):
+        for session in sessions_id:
+            for gender in genders_id:
+                index = '%02d' % i
+                dir_name = session + gender + index
+                for angle in images_names:
+                    for j, emotion in enumerate(angle):
+                        file_name = dir_name + '/' + session + gender + index + emotion
+                        outStr = file_name
+                        for k in range(8):
+                            outStr += '\t'
+                            if k == j:
+                                outStr += "1"
+                            else:
+                                outStr += "-1"
+                        attrFile.write(outStr + '\n')
     attrFile.close()
-    return count
+    return
 
-def preprocess_images(N_IMAGES):
+def preprocess_images():
 
     if os.path.isfile(IMG_PATH):
         print("%s exists, nothing to do." % IMG_PATH)
@@ -84,13 +96,14 @@ def preprocess_images(N_IMAGES):
 
     data = np.concatenate([img.transpose((2, 0, 1))[None] for img in all_images], 0)
     data = torch.from_numpy(data)
+    print data.size()
     assert data.size() == (N_IMAGES, 3, IMG_SIZE, IMG_SIZE)
 
     print("Saving images to %s ..." % IMG_PATH)
     torch.save(data[:20000].clone(), 'images_%i_%i_20000.pth' % (IMG_SIZE, IMG_SIZE))
     torch.save(data, IMG_PATH)
 
-def preprocess_attributes(N_IMAGES):
+def preprocess_attributes():
 
     if os.path.isfile(ATTR_PATH):
         print("%s exists, nothing to do." % ATTR_PATH)
@@ -115,6 +128,6 @@ def preprocess_attributes(N_IMAGES):
     print("Saving attributes to %s ..." % ATTR_PATH)
     torch.save(attributes, ATTR_PATH)
 
-N_IMAGES = create_attributes()
-preprocess_images(N_IMAGES)
-preprocess_attributes(N_IMAGES)
+create_attributes()
+preprocess_images()
+preprocess_attributes()

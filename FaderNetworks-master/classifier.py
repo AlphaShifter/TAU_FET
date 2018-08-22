@@ -27,7 +27,7 @@ parser.add_argument("--img_sz", type=int, default=256,
                     help="Image sizes (images have to be squared)")
 parser.add_argument("--img_fm", type=int, default=3,
                     help="Number of feature maps (1 for grayscale, 3 for RGB)")
-parser.add_argument("--attr", type=attr_flag, default="Smiling",
+parser.add_argument("--attr", type=attr_flag, default="Happy",
                     help="Attributes to classify")
 parser.add_argument("--init_fm", type=int, default=32,
                     help="Number of initial filters in the encoder")
@@ -62,10 +62,10 @@ assert not params.reload or os.path.isfile(params.reload)
 
 # initialize experiment / load dataset
 logger = initialize_exp(params)
-data, attributes = load_images(params)
-train_data = DataSampler(data[0], attributes[0], params)
-valid_data = DataSampler(data[1], attributes[1], params)
-test_data = DataSampler(data[2], attributes[2], params)
+data, attributes, _, _ = load_images(params)
+train_data = DataSampler(data[0], attributes[0], None, None, params)
+valid_data = DataSampler(data[1], attributes[1], None, None, params)
+test_data = DataSampler(data[2], attributes[2], None, None, params)
 
 # build the model / reload / optimizer
 classifier = Classifier(params).cuda()

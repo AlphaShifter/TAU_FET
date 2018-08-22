@@ -49,20 +49,25 @@ logger = create_logger(None)
 ae = torch.load(params.model_path).eval()
 
 # restore main parameters
-params.debug = True
+params.debug = False
 params.batch_size = 32
 params.v_flip = False
 params.h_flip = False
 params.img_sz = ae.img_sz
 params.attr = ae.attr
+
 params.n_attr = ae.n_attr
+
+#print params
 if not (len(params.attr) == 1 and params.n_attr == 2):
+    print len(params.attr)
+    print params.attr
+    print params.n_attr
     raise Exception("The model must use a single boolean attribute only.")
 
 # load dataset
-data, attributes = load_images(params)
-test_data = DataSampler(data[2], attributes[2], params)
-
+data, attributes,images2, attributes2 = load_images(params)
+test_data = DataSampler(data[2], attributes[2], images2, attributes2, params)
 
 def get_interpolations(ae, images, attributes, params):
     """
@@ -74,7 +79,6 @@ def get_interpolations(ae, images, attributes, params):
     # interpolation values
     alphas = np.linspace(1 - params.alpha_min, params.alpha_max, params.n_interpolations)
     alphas = [torch.FloatTensor([1 - alpha, alpha]) for alpha in alphas]
-
     # original image / reconstructed image / interpolations
     outputs = []
     outputs.append(images)
@@ -89,10 +93,15 @@ def get_interpolations(ae, images, attributes, params):
 
 interpolations = []
 
+
 for k in range(0, params.n_images, 100):
     i = params.offset + k
     j = params.offset + min(params.n_images, k + 100)
     images, attributes = test_data.eval_batch(i, j)
+    print "===="
+    print attributes
+    print images.shape
+    print "===="
     interpolations.append(get_interpolations(ae, images, attributes, params))
 
 interpolations = torch.cat(interpolations, 0)

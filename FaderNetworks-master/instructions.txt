@@ -1,0 +1,40 @@
+pth file created by classifier.py: 9ws3zzlhgi
+
+
+pth file created by train.py: models/default/t36xlawe1u/
+
+
+
+things I learned:
+1. you always need to run the classifier first. 
+2. the output of the classifier's run is a best.pth file. its location is written just at the beginning of the run.
+   we need to save that location, because when we'll run the train.py, we will have to add that location as a 
+   parameter: --eval_clf <path to pth file>
+3. i put line 229 in evaluation.py in comment, since I got an error "not json serializable". 
+   I dont think that line is too important..
+   
+
+
+
+run classifier:
+    python classifier.py --n_epochs 5 --epoch_size 1000 --name small_batch_classifier_happy
+
+run train with some pre loading:
+
+    python train.py --n_epochs 80 --epoch_size 50000 --name "40000_batch_train_happy" --n_ptc_dis 1 --lambda_ptc_dis 0.0001 --lat_dis_reload models/test_thursday_train_happy/ws54h8hb6e/best_rec_lat_dis.pth --ae_reload models/test_thursday_train_happy/ws54h8hb6e/best_accu_ae.pth --eval_clf models/test_thursday_classifier_happy/os5xtkhhxd/best.pth
+  
+run train without pre loading
+python train.py --n_epochs 80 --epoch_size 50000 --name "40000_batch_train_happy" --n_ptc_dis 1 --lambda_ptc_dis 0.00001 --eval_clf models/test_thursday_classifier_happy/os5xtkhhxd/best.pth    
+
+
+    
+
+
+
+last train file is stored under 5tbk6
+
+
+
+
+
+/mnt/data/students/student5/TAU_FET/FaderNetworks-master/models/small_batch_train_all/abdj9hle7v/best_rec_ae.pth

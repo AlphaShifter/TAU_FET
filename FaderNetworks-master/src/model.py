@@ -11,7 +11,6 @@ from torch import nn
 from torch.autograd import Variable
 from torch.nn import functional as F
 
-
 def build_layers(img_sz, img_fm, init_fm, max_fm, n_layers, n_attr, n_skip,
                  deconv_method, instance_norm, enc_dropout, dec_dropout):
     """
@@ -112,7 +111,8 @@ class AutoEncoder(nn.Module):
         bs = enc_outputs[0].size(0)
         assert len(enc_outputs) == self.n_layers + 1
         assert y.size() == (bs, self.n_attr)
-
+        #for i in range(len(enc_outputs)):
+        #    print enc_outputs[i].size()
         dec_outputs = [enc_outputs[-1]]
         y = y.unsqueeze(2).unsqueeze(3)
         for i, layer in enumerate(self.dec_layers):
@@ -129,9 +129,52 @@ class AutoEncoder(nn.Module):
         assert dec_outputs[-1].size() == (bs, self.img_fm, self.img_sz, self.img_sz)
         return dec_outputs
 
-    def forward(self, x, y):
+    def decode_second_step(self, enc_outputs):
+        bs = enc_outputs[0].size(0)
+        dec_outputs = {}
+        assert len(enc_outputs) == self.n_layers + 1
+        #assert y.size() == (bs, self.n_attr)
+        
+        for i in range(self.n_attr/2):
+            
+            attr = self.attr[i][0]
+            rng = self.attr[i][1]
+            
+            # create attribute tensor for current attribute
+            y = torch.zeros([bs, self.n_attr], dtype=torch.float32)
+            for j in range(self.n_attr/2):
+                if i == j:
+                    val = torch.tensor([0., 1.])
+                else:
+                    val = torch.tensor([1., 0.])
+                for k in range(bs):
+                    y[k,2*j:2*(j+1)] = val
+
+            dec_outputs[attr] = [enc_outputs[-1]]
+            y = y.unsqueeze(2).unsqueeze(3).cuda()
+            
+            for i, layer in enumerate(self.dec_layers):
+                size = dec_outputs[attr][-1].size(2)
+                # attributes
+                input = [dec_outputs[attr][-1], y.expand(bs, self.n_attr, size, size)]
+                # skip connection
+                if 0 < i <= self.n_skip:
+                    input.append(enc_outputs[-1 - i])
+                input = torch.cat(input, 1)
+                dec_outputs[attr].append(layer(input))
+
+            assert len(dec_outputs[attr]) == self.n_layers + 1
+            assert dec_outputs[attr][-1].size() == (bs, self.img_fm, self.img_sz, self.img_sz)
+
+        return dec_outputs
+
+    def forward(self, x, y, first_step=True):
+
         enc_outputs = self.encode(x)
-        dec_outputs = self.decode(enc_outputs, y)
+        if first_step:
+            dec_outputs = self.decode(enc_outputs, y)
+        else:
+            dec_outputs = self.decode_second_step(enc_outputs)
         return enc_outputs, dec_outputs
 
 

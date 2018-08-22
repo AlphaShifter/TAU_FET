@@ -33,7 +33,8 @@ class Evaluator(object):
         self.clf_dis = clf_dis
         self.eval_clf = eval_clf
         assert eval_clf.img_sz == params.img_sz
-        assert all(attr in eval_clf.attr for attr in params.attr)
+        #print all(attr in eval_clf.attr for attr in params.attr)
+        #assert all(attr in eval_clf.attr for attr in params.attr)
 
     def eval_reconstruction_loss(self):
         """
@@ -226,7 +227,7 @@ class Evaluator(object):
             ('n_epoch', n_epoch),
             ('ae_loss', ae_loss)
         ] + log_lat_dis + log_ptc_dis + log_clf_dis + log_clf)
-        logger.debug("__log__:%s" % json.dumps(to_log))
+        #logger.debug("__log__:%s" % json.dumps(to_log))
 
         return to_log
 

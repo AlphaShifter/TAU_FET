@@ -84,6 +84,14 @@ def check_attr(params):
     if params.attr == '*':
         params.attr = attr_flag(','.join(AVAILABLE_ATTR))
     else:
+        #for name, n_cat in params.attr:
+        #    print name
+        #    print n_cat
+        #print "===="
+        for name in AVAILABLE_ATTR:
+            print name
+        
+        #print (name in AVAILABLE_ATTR and n_cat >= 2 for name, n_cat in params.attr)
         assert all(name in AVAILABLE_ATTR and n_cat >= 2 for name, n_cat in params.attr)
     params.n_attr = sum([n_cat for _, n_cat in params.attr])
 
@@ -210,6 +218,7 @@ def reload_model(model, to_reload, attributes=None):
     # check attributes
     attributes = [] if attributes is None else attributes
     for k in attributes:
+        print k
         if getattr(model, k, None) is None:
             raise Exception('Attribute "%s" not found in the current model' % k)
         if getattr(to_reload, k, None) is None:
@@ -218,7 +227,6 @@ def reload_model(model, to_reload, attributes=None):
             raise Exception('Attribute "%s" differs between the current model (%s) '
                             'and the one to reload (%s)'
                             % (k, str(getattr(model, k)), str(getattr(to_reload, k))))
-
     # copy saved parameters
     for k in model.state_dict().keys():
         if model.state_dict()[k].size() != to_reload.state_dict()[k].size():

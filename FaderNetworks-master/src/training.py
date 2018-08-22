@@ -17,7 +17,7 @@ from .model import get_attr_loss, flip_attributes
 
 
 logger = getLogger()
-
+attr_keys=["Neutral", "Happy", "Sad", "Surprise", "Fear", "Disgust", "Anger", "Contempt"]
 
 class Trainer(object):
 
@@ -62,7 +62,8 @@ class Trainer(object):
                          ['img_sz', 'img_fm', 'init_fm', 'n_layers', 'n_skip', 'attr', 'n_attr'])
         if params.lat_dis_reload:
             reload_model(lat_dis, params.lat_dis_reload,
-                         ['enc_dim', 'attr', 'n_attr'])
+                         #['enc_dim', 'attr', 'n_attr'])
+                        ['attr', 'n_attr'])
         if params.ptc_dis_reload:
             reload_model(ptc_dis, params.ptc_dis_reload,
                          ['img_sz', 'img_fm', 'init_fm', 'max_fm', 'n_patch_dis_layers'])
@@ -203,7 +204,45 @@ class Trainer(object):
         if params.clip_grad_norm:
             clip_grad_norm(self.ae.parameters(), params.clip_grad_norm)
         self.ae_optimizer.step()
+    
+    def autoencoder_second_step(self, i, n_attr_set):
+        """
+        Train the autoencoder with cross-entropy loss.
+        """
+        data = self.data
+        params = self.params
+        self.ae.train()
+        if params.n_clf_dis:
+            self.clf_dis.eval()
+        # batch / encode / decode
+        batch_x, batch_y = data.eval_batch2(i*n_attr_set, (i + 1)*n_attr_set)
+        enc_outputs, dec_outputs = self.ae(batch_x, batch_y, False)
 
+        # autoencoder loss from reconstruction
+        loss = 0
+        index = -1
+        n_channels = batch_x.size(1)
+        img_size = batch_x.size(2)
+        for attr in dec_outputs:
+            for attr_name, attr_index in enumerate(attr_keys):
+                if(attr_name == attr):
+                    index = attr_index
+            const_batch_x = batch_x[index,:,:,:].unsqueeze(0).expand(n_attr_set, n_channels, img_size, img_size)
+            loss += params.lambda_ae * ((const_batch_x - dec_outputs[attr][-1]) ** 2).mean()
+            self.stats['rec_costs'].append(loss.data[0])
+        
+        # check NaN
+        if (loss != loss).data.any():
+            logger.error("NaN detected")
+            exit()
+        
+        # optimize
+        self.ae_optimizer.zero_grad()
+        loss.backward()
+        if params.clip_grad_norm:
+            clip_grad_norm(self.ae.parameters(), params.clip_grad_norm)
+        self.ae_optimizer.step()
+        
     def step(self, n_iter):
         """
         End training iteration / print training statistics.

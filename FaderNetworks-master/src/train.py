@@ -24,7 +24,8 @@ parser.add_argument("--img_sz", type=int, default=256,
                     help="Image sizes (images have to be squared)")
 parser.add_argument("--img_fm", type=int, default=3,
                     help="Number of feature maps (1 for grayscale, 3 for RGB)")
-parser.add_argument("--attr", type=attr_flag, default="Smiling,Male",
+#parser.add_argument("--attr", type=attr_flag, default="Neutral,Happy,Sad,Surprise,Fear,Disgust,Anger,Contempt",
+parser.add_argument("--attr", type=attr_flag, default="Happy",
                     help="Attributes to classify")
 parser.add_argument("--instance_norm", type=bool_flag, default=False,
                     help="Use instance normalization instead of batch normalization")
@@ -76,7 +77,7 @@ parser.add_argument("--clip_grad_norm", type=float, default=5,
                     help="Clip gradient norms (0 to disable)")
 parser.add_argument("--n_epochs", type=int, default=1000,
                     help="Total number of epochs")
-parser.add_argument("--epoch_size", type=int, default=50000,
+parser.add_argument("--epoch_size", type=int, default=10000,
                     help="Number of samples per epoch")
 parser.add_argument("--ae_reload", type=str, default="",
                     help="Reload a pretrained encoder")
@@ -102,6 +103,8 @@ assert not params.ae_reload or os.path.isfile(params.ae_reload)
 assert not params.lat_dis_reload or os.path.isfile(params.lat_dis_reload)
 assert not params.ptc_dis_reload or os.path.isfile(params.ptc_dis_reload)
 assert not params.clf_dis_reload or os.path.isfile(params.clf_dis_reload)
+#print params.eval_clf
+#print "==="
 assert os.path.isfile(params.eval_clf)
 assert params.lambda_lat_dis == 0 or params.n_lat_dis > 0
 assert params.lambda_ptc_dis == 0 or params.n_ptc_dis > 0
@@ -109,9 +112,9 @@ assert params.lambda_clf_dis == 0 or params.n_clf_dis > 0
 
 # initialize experiment / load dataset
 logger = initialize_exp(params)
-data, attributes = load_images(params)
-train_data = DataSampler(data[0], attributes[0], params)
-valid_data = DataSampler(data[1], attributes[1], params)
+data, attributes, data2, attributes2 = load_images(params)
+train_data = DataSampler(data[0], attributes[0], data2, attributes2, params)
+valid_data = DataSampler(data[1], attributes[1], None, None, params)
 
 # build the model
 ae = AutoEncoder(params).cuda()
@@ -130,7 +133,7 @@ for n_epoch in range(params.n_epochs):
     logger.info('Starting epoch %i...' % n_epoch)
 
     for n_iter in range(0, params.epoch_size, params.batch_size):
-
+        
         # latent discriminator training
         for _ in range(params.n_lat_dis):
             trainer.lat_dis_step()
@@ -148,6 +151,11 @@ for n_epoch in range(params.n_epochs):
 
         # print training statistics
         trainer.step(n_iter)
+        
+    for n_iter in range(4900/7):
+        print n_iter
+        # autoencoder training second step
+        trainer.autoencoder_second_step(n_iter, 7)
 
     # run all evaluations / save best or periodic model
     to_log = evaluator.evaluate(n_epoch)
