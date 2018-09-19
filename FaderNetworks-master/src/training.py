@@ -93,7 +93,7 @@ class Trainer(object):
         self.lat_dis.train()
         bs = params.batch_size
         # batch / encode / discriminate
-        batch_x, batch_y = data.train_batch(bs)
+        batch_x, batch_y, _, _ = data.train_batch(bs)
         enc_outputs = self.ae.encode(Variable(batch_x.data, volatile=True))
         preds = self.lat_dis(Variable(enc_outputs[-1 - params.n_skip].data))
         # loss / optimize
@@ -115,16 +115,31 @@ class Trainer(object):
         self.ptc_dis.train()
         bs = params.batch_size
         # batch / encode / discriminate
-        batch_x, batch_y = data.train_batch(bs)
-        flipped = flip_attributes(batch_y, params, 'all')
-        _, dec_outputs = self.ae(Variable(batch_x.data, volatile=True), flipped)
-        real_preds = self.ptc_dis(batch_x)
-        fake_preds = self.ptc_dis(Variable(dec_outputs[-1].data))
-        y_fake = Variable(torch.FloatTensor(real_preds.size())
+        batch_x1, batch_y1, batch_x2, batch_y2 = data.train_batch(bs)
+        flipped1 = flip_attributes(batch_y1, params, 'all')
+        flipped2 = flip_attributes(batch_y2, params, 'all')
+        _, dec_outputs1 = self.ae(Variable(batch_x1.data, volatile=True), flipped1)
+        _, dec_outputs2 = self.ae(Variable(batch_x2.data, volatile=True), flipped2)
+        same_real_preds = self.ptc_dis(batch_x1, batch_x1)
+        diff_real_preds = self.ptc_dis(batch_x2, batch_x1)
+        same_fake_preds = self.ptc_dis(Variable(dec_outputs1[-1].data), batch_x1)
+        diff_fake_preds = self.ptc_dis(Variable(dec_outputs2[-1].data), batch_x1)
+        y_fake = Variable(torch.FloatTensor(same_real_preds.size(1))
                                .fill_(params.smooth_label).cuda())
+
         # loss / optimize
-        loss = F.binary_cross_entropy(real_preds, 1 - y_fake)
-        loss += F.binary_cross_entropy(fake_preds, y_fake)
+        loss = F.binary_cross_entropy(same_real_preds[0,:], 1 - y_fake)
+        loss += F.binary_cross_entropy(same_real_preds[1,:], 1 - y_fake)
+        
+        loss += F.binary_cross_entropy(diff_real_preds[0,:], y_fake)
+        loss += F.binary_cross_entropy(diff_real_preds[1,:], 1 - y_fake)
+        
+        loss += F.binary_cross_entropy(same_fake_preds[0,:], 1 - y_fake)
+        loss += F.binary_cross_entropy(same_fake_preds[1,:], y_fake)
+        
+        loss += F.binary_cross_entropy(diff_fake_preds[0,:], y_fake)
+        loss += F.binary_cross_entropy(diff_fake_preds[1,:], y_fake)
+        
         self.stats['ptc_dis_costs'].append(loss.data[0])
         self.ptc_dis_optimizer.zero_grad()
         loss.backward()
@@ -141,7 +156,7 @@ class Trainer(object):
         self.clf_dis.train()
         bs = params.batch_size
         # batch / predict
-        batch_x, batch_y = data.train_batch(bs)
+        batch_x, batch_y, _, _ = data.train_batch(bs)
         preds = self.clf_dis(batch_x)
         # loss / optimize
         loss = get_attr_loss(preds, batch_y, False, params)
@@ -168,7 +183,7 @@ class Trainer(object):
             self.clf_dis.eval()
         bs = params.batch_size
         # batch / encode / decode
-        batch_x, batch_y = data.train_batch(bs)
+        batch_x, batch_y, _, _ = data.train_batch(bs)
         enc_outputs, dec_outputs = self.ae(batch_x, batch_y)
         # autoencoder loss from reconstruction
         loss = params.lambda_ae * ((batch_x - dec_outputs[-1]) ** 2).mean()
@@ -184,7 +199,7 @@ class Trainer(object):
             dec_outputs_flipped = self.ae.decode(enc_outputs, flipped)
         # autoencoder loss from the patch discriminator
         if params.lambda_ptc_dis:
-            ptc_dis_preds = self.ptc_dis(dec_outputs_flipped[-1])
+            ptc_dis_preds = self.ptc_dis(dec_outputs_flipped[-1], batch_x)
             y_fake = Variable(torch.FloatTensor(ptc_dis_preds.size())
                                    .fill_(params.smooth_label).cuda())
             ptc_dis_loss = F.binary_cross_entropy(ptc_dis_preds, 1 - y_fake)
@@ -305,7 +320,7 @@ def classifier_step(classifier, optimizer, data, params, costs):
     bs = params.batch_size
 
     # batch / classify
-    batch_x, batch_y = data.train_batch(bs)
+    batch_x, batch_y, _, _ = data.train_batch(bs)
     preds = classifier(batch_x)
     # loss / optimize
     loss = get_attr_loss(preds, batch_y, False, params)

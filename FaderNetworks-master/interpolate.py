@@ -98,10 +98,6 @@ for k in range(0, params.n_images, 100):
     i = params.offset + k
     j = params.offset + min(params.n_images, k + 100)
     images, attributes = test_data.eval_batch(i, j)
-    print "===="
-    print attributes
-    print images.shape
-    print "===="
     interpolations.append(get_interpolations(ae, images, attributes, params))
 
 interpolations = torch.cat(interpolations, 0)

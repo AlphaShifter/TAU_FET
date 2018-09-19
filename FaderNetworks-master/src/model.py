@@ -223,7 +223,7 @@ class PatchDiscriminator(nn.Module):
         super(PatchDiscriminator, self).__init__()
 
         self.img_sz = params.img_sz
-        self.img_fm = params.img_fm
+        self.img_fm = 2 * params.img_fm
         self.init_fm = params.init_fm
         self.max_fm = params.max_fm
         self.n_patch_dis_layers = 3
@@ -244,15 +244,18 @@ class PatchDiscriminator(nn.Module):
                 n_in = n_out
                 n_out = min(2 * n_out, self.max_fm)
 
-        layers.append(nn.Conv2d(n_out, 1, kernel_size=4, stride=1, padding=1))
+        layers.append(nn.Conv2d(n_out, 2, kernel_size=4, stride=1, padding=1))
         layers.append(nn.Sigmoid())
 
         self.layers = nn.Sequential(*layers)
 
-    def forward(self, x):
+    def forward(self, x1, x2):
+        x = torch.cat((x1, x2), 1)
         assert x.dim() == 4
-        return self.layers(x).view(x.size(0), -1).mean(1).view(x.size(0))
-
+        x = self.layers(x)
+        x = x.view(x.size(0), x.size(1), -1).mean(2).view(x.size(1), x.size(0))
+        return x
+        
 
 class Classifier(nn.Module):
 

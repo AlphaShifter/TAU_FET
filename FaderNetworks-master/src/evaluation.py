@@ -82,8 +82,10 @@ class Evaluator(object):
         self.ptc_dis.eval()
         bs = params.batch_size
 
-        real_preds = []
-        fake_preds = []
+        same_real_preds = [ [], [] ]
+        same_fake_preds = [ [], [] ]
+        diff_real_preds = [ [], [] ]
+        diff_fake_preds = [ [], [] ]
 
         for i in range(0, len(data), bs):
             # batch / encode / decode
@@ -91,10 +93,23 @@ class Evaluator(object):
             flipped = flip_attributes(batch_y, params, 'all')
             _, dec_outputs = self.ae(batch_x, flipped)
             # predictions
-            real_preds.extend(self.ptc_dis(batch_x).data.tolist())
-            fake_preds.extend(self.ptc_dis(dec_outputs[-1]).data.tolist())
+            same_real_output = self.ptc_dis(batch_x, batch_x)
+            same_fake_output = self.ptc_dis(dec_outputs[-1], batch_x)
+            if i != 0 and batch_x_prev.size() == batch_x.size():
+                diff_real_output = self.ptc_dis(batch_x_prev, batch_x)
+                diff_fake_output = self.ptc_dis(dec_outputs_prev[-1], batch_x)
+            
+            for j in range(2):
+                same_real_preds[j].extend(same_real_output.data.tolist()[j])
+                same_fake_preds[j].extend(same_fake_output.data.tolist()[j])
+                if i != 0 and batch_x_prev.size() == batch_x.size():
+                    diff_real_preds[j].extend(diff_real_output.data.tolist()[j])
+                    diff_fake_preds[j].extend(diff_fake_output.data.tolist()[j])
 
-        return real_preds, fake_preds
+            batch_x_prev = batch_x
+            dec_outputs_prev = dec_outputs
+
+        return same_real_preds, diff_real_preds, same_fake_preds, diff_fake_preds
 
     def eval_clf_dis_accuracy(self):
         """
@@ -181,14 +196,46 @@ class Evaluator(object):
         # patch discriminator accuracy
         log_ptc_dis = []
         if params.n_ptc_dis:
-            ptc_dis_real_preds, ptc_dis_fake_preds = self.eval_ptc_dis_accuracy()
-            accu_real = (np.array(ptc_dis_real_preds).astype(np.float32) >= 0.5).mean()
-            accu_fake = (np.array(ptc_dis_fake_preds).astype(np.float32) <= 0.5).mean()
-            log_ptc_dis.append(('ptc_dis_preds_real', np.mean(ptc_dis_real_preds)))
-            log_ptc_dis.append(('ptc_dis_preds_fake', np.mean(ptc_dis_fake_preds)))
-            log_ptc_dis.append(('ptc_dis_accu_real', accu_real))
-            log_ptc_dis.append(('ptc_dis_accu_fake', accu_fake))
-            log_ptc_dis.append(('ptc_dis_accu', (accu_real + accu_fake) / 2))
+            same_real_preds, diff_real_preds, same_fake_preds, diff_fake_preds = self.eval_ptc_dis_accuracy()
+            
+            accu_same_real_0 = (np.array(same_real_preds[0]).astype(np.float32) >= 0.5).mean()
+            accu_same_real_1 = (np.array(same_real_preds[1]).astype(np.float32) >= 0.5).mean()
+            
+            accu_diff_real_0 = (np.array(diff_real_preds[0]).astype(np.float32) <= 0.5).mean()
+            accu_diff_real_1 = (np.array(diff_real_preds[1]).astype(np.float32) >= 0.5).mean()
+            
+            accu_same_fake_0 = (np.array(diff_real_preds[0]).astype(np.float32) >= 0.5).mean()
+            accu_same_fake_1 = (np.array(diff_real_preds[1]).astype(np.float32) <= 0.5).mean()
+            
+            accu_diff_fake_0 = (np.array(diff_real_preds[0]).astype(np.float32) <= 0.5).mean()
+            accu_diff_fake_1 = (np.array(diff_real_preds[1]).astype(np.float32) <= 0.5).mean()
+            
+            log_ptc_dis.append(('ptc_dis_preds_same_real_0', np.mean(same_real_preds[0])))
+            log_ptc_dis.append(('ptc_dis_preds_same_real_1', np.mean(same_real_preds[1])))
+            
+            log_ptc_dis.append(('ptc_dis_preds_diff_real_0', np.mean(diff_real_preds[0])))
+            log_ptc_dis.append(('ptc_dis_preds_diff_real_1', np.mean(diff_real_preds[1])))
+            
+            log_ptc_dis.append(('ptc_dis_preds_same_fake_0', np.mean(same_fake_preds[0])))
+            log_ptc_dis.append(('ptc_dis_preds_same_fake_1', np.mean(same_fake_preds[1])))
+            
+            log_ptc_dis.append(('ptc_dis_preds_diff_fake_0', np.mean(diff_fake_preds[0])))
+            log_ptc_dis.append(('ptc_dis_preds_diff_fake_1', np.mean(diff_fake_preds[1])))
+            
+            log_ptc_dis.append(('ptc_dis_accu_same_real_0', accu_same_real_0))
+            log_ptc_dis.append(('ptc_dis_accu_same_real_1', accu_same_real_1))
+            
+            log_ptc_dis.append(('ptc_dis_accu_diff_real_0', accu_diff_real_0))
+            log_ptc_dis.append(('ptc_dis_accu_diff_real_1', accu_diff_real_1))
+            
+            log_ptc_dis.append(('ptc_dis_accu_same_fake_0', accu_same_fake_0))
+            log_ptc_dis.append(('ptc_dis_accu_same_fake_1', accu_same_fake_1))
+            
+            log_ptc_dis.append(('ptc_dis_accu_diff_fake_0', accu_diff_fake_0))
+            log_ptc_dis.append(('ptc_dis_accu_diff_fake_1', accu_diff_fake_1))
+            
+            log_ptc_dis.append(('ptc_dis_acptc_dis_cu', (accu_same_real_0 + accu_same_real_1 + accu_diff_real_0 + accu_diff_real_1 + accu_same_fake_0 + accu_same_fake_1 + accu_diff_fake_0 + accu_diff_fake_1) / 8))
+            #log_ptc_dis.append(('ptc_dis_acptc_dis_cu', (accu_real + accu_fake + accu_diff) / 3))
             logger.info('Patch discriminator accuracy:')
             print_accuracies(log_ptc_dis)
 

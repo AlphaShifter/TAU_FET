@@ -19,7 +19,7 @@ AVAILABLE_ATTR = [
     "Neutral","Happy", "Sad", "Surprise", "Fear", "Disgust", "Anger", "Contempt"
 ]
 
-DATA_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data/40000_batch/')
+DATA_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data/')
 
 
 def log_attributes_stats(train_attributes, valid_attributes, test_attributes, params):
@@ -48,19 +48,19 @@ def load_images(params):
     images2_filename = 'images_%i_%i_2.pth'
     images2_filename = images2_filename % (params.img_sz, params.img_sz)
     images = torch.load(os.path.join(DATA_PATH, images_filename))
-    images2 = torch.load(os.path.join(DATA_PATH, images2_filename))
+    #images2 = torch.load(os.path.join(DATA_PATH, images2_filename))
     attributes = torch.load(os.path.join(DATA_PATH, 'attributes.pth'))
-    attributes2 = torch.load(os.path.join(DATA_PATH, 'attributes2.pth'))
+    #attributes2 = torch.load(os.path.join(DATA_PATH, 'attributes2.pth'))
 
     # parse attributes
     attrs = []
-    attrs2 = []
+    #attrs2 = []
     for name, n_cat in params.attr:
         for i in range(n_cat):
             attrs.append(torch.FloatTensor((attributes[name] == i).astype(np.float32)))
-            attrs2.append(torch.FloatTensor((attributes2[name] == i).astype(np.float32)))
+            #attrs2.append(torch.FloatTensor((attributes2[name] == i).astype(np.float32)))
     attributes = torch.cat([x.unsqueeze(1) for x in attrs], 1)
-    attributes2 = torch.cat([x.unsqueeze(1) for x in attrs2], 1)
+    #attributes2 = torch.cat([x.unsqueeze(1) for x in attrs2], 1)
     
     # split train / valid / test
     if params.debug:
@@ -85,7 +85,7 @@ def load_images(params):
     images = train_images, valid_images, test_images
     attributes = train_attributes, valid_attributes, test_attributes
 
-    return images, attributes, images2, attributes2 
+    return images, attributes, None, None#, images2, attributes2 
 
 def normalize_images(images):
     """
@@ -122,19 +122,23 @@ class DataSampler(object):
         Get a batch of random images with their attributes.
         """
         # image IDs
-        idx = torch.LongTensor(bs).random_(len(self.images))
+        idx = torch.LongTensor(2 * bs).random_(len(self.images))
 
         # select images / attributes
-        batch_x = normalize_images(self.images.index_select(0, idx).cuda())
-        batch_y = self.attributes.index_select(0, idx).cuda()
-
+        batch_x1 = normalize_images(self.images.index_select(0, idx[0:bs-1]).cuda())
+        batch_y1 = self.attributes.index_select(0, idx[0:bs-1]).cuda()
+        batch_x2 = normalize_images(self.images.index_select(0, idx[bs:2*bs - 1]).cuda())
+        batch_y2 = self.attributes.index_select(0, idx[bs:2*bs - 1]).cuda()
+        
         # data augmentation
         if self.v_flip and np.random.rand() <= 0.5:
-            batch_x = batch_x.index_select(2, torch.arange(batch_x.size(2) - 1, -1, -1).long().cuda())
+            batch_x1 = batch_x1.index_select(2, torch.arange(batch_x1.size(2) - 1, -1, -1).long().cuda())
+            batch_x2 = batch_x2.index_select(2, torch.arange(batch_x2.size(2) - 1, -1, -1).long().cuda())
         if self.h_flip and np.random.rand() <= 0.5:
-            batch_x = batch_x.index_select(3, torch.arange(batch_x.size(3) - 1, -1, -1).long().cuda())
+            batch_x1 = batch_x1.index_select(3, torch.arange(batch_x1.size(3) - 1, -1, -1).long().cuda())
+            batch_x2 = batch_x2.index_select(3, torch.arange(batch_x2.size(3) - 1, -1, -1).long().cuda())
 
-        return Variable(batch_x, volatile=False), Variable(batch_y, volatile=False)
+        return Variable(batch_x1, volatile=False), Variable(batch_y1, volatile=False), Variable(batch_x2, volatile=False), Variable(batch_y2, volatile=False)
 
     def eval_batch(self, i, j):
         """

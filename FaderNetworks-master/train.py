@@ -133,7 +133,7 @@ for n_epoch in range(params.n_epochs):
 
     logger.info('Starting epoch %i...' % n_epoch)
 
-    '''for n_iter in range(0, params.epoch_size, params.batch_size):
+    for n_iter in range(0, params.epoch_size, params.batch_size):
         
         # latent discriminator training
         for _ in range(params.n_lat_dis):
@@ -151,13 +151,13 @@ for n_epoch in range(params.n_epochs):
         trainer.autoencoder_step()
 
         # print training statistics
-        trainer.step(n_iter)'''
+        trainer.step(n_iter)
     
-    array = range(0,700)
-    random.shuffle(array)
-    for n_iter in array:    
+    #array = range(0,700)
+    #random.shuffle(array)
+    #for n_iter in array:    
         #autoencoder training second step
-        trainer.autoencoder_second_step(n_iter, 7)
+        #trainer.autoencoder_second_step(n_iter, 7)
 
     # run all evaluations / save best or periodic model
     to_log = evaluator.evaluate(n_epoch)

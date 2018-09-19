@@ -13,7 +13,7 @@ ATTRIBUTES_CSV = 'training.csv'
 IMG_SIZE = 256
 IMG_PATH = 'images_%i_%i.pth' % (IMG_SIZE, IMG_SIZE)
 ATTR_PATH = 'attributes.pth'
-PATH_TO_IMAGES = 'AffectNet/smallBatch/'
+PATH_TO_IMAGES = 'Manually_Annotated_Images/'
 
 def create_attributes():
     
