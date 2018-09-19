@@ -90,8 +90,8 @@ class Evaluator(object):
         for i in range(0, len(data), bs):
             # batch / encode / decode
             batch_x, batch_y = data.eval_batch(i, i + bs)
-            flipped = flip_attributes(batch_y, params, 'all')
-            _, dec_outputs = self.ae(batch_x, flipped)
+            #flipped = flip_attributes(batch_y, params, 'all')
+            _, dec_outputs = self.ae(batch_x, batch_y)
             # predictions
             same_real_output = self.ptc_dis(batch_x, batch_x)
             same_fake_output = self.ptc_dis(dec_outputs[-1], batch_x)

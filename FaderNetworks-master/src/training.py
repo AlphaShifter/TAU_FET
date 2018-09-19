@@ -116,10 +116,11 @@ class Trainer(object):
         bs = params.batch_size
         # batch / encode / discriminate
         batch_x1, batch_y1, batch_x2, batch_y2 = data.train_batch(bs)
-        flipped1 = flip_attributes(batch_y1, params, 'all')
-        flipped2 = flip_attributes(batch_y2, params, 'all')
-        _, dec_outputs1 = self.ae(Variable(batch_x1.data, volatile=True), flipped1)
-        _, dec_outputs2 = self.ae(Variable(batch_x2.data, volatile=True), flipped2)
+        #flipped1 = flip_attributes(batch_y1, params, 'all')
+        #flipped2 = flip_attributes(batch_y2, params, 'all')
+
+        _, dec_outputs1 = self.ae(Variable(batch_x1.data, volatile=True), batch_y1)
+        _, dec_outputs2 = self.ae(Variable(batch_x2.data, volatile=True), batch_y2)
         same_real_preds = self.ptc_dis(batch_x1, batch_x1)
         diff_real_preds = self.ptc_dis(batch_x2, batch_x1)
         same_fake_preds = self.ptc_dis(Variable(dec_outputs1[-1].data), batch_x1)
