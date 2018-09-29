@@ -43,8 +43,8 @@ def create_attributes():
                     outStr += "-1"
             if not ignoreRow:
                 attrFile.write(outStr + '\n')
-            #if(count>14000):
-            #    break
+            if(count>40000):
+                break
         print attr_count
     attrFile.close()
     return count
@@ -87,7 +87,6 @@ def preprocess_images(N_IMAGES):
     assert data.size() == (N_IMAGES, 3, IMG_SIZE, IMG_SIZE)
 
     print("Saving images to %s ..." % IMG_PATH)
-    torch.save(data[:20000].clone(), 'images_%i_%i_20000.pth' % (IMG_SIZE, IMG_SIZE))
     torch.save(data, IMG_PATH)
 
 def preprocess_attributes(N_IMAGES):

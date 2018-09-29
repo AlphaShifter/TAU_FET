@@ -21,7 +21,7 @@ from src.evaluation import compute_accuracy
 
 # parse parameters
 parser = argparse.ArgumentParser(description='Classifier')
-parser.add_argument("--name", type=str, default="default",
+parser.add_argument("--name", type=str, default="classifier",
                     help="Experiment name")
 parser.add_argument("--img_sz", type=int, default=256,
                     help="Image sizes (images have to be squared)")
@@ -45,9 +45,9 @@ parser.add_argument("--optimizer", type=str, default="adam",
                     help="Classifier optimizer (SGD / RMSprop / Adam, etc.)")
 parser.add_argument("--clip_grad_norm", type=float, default=5,
                     help="Clip gradient norms (0 to disable)")
-parser.add_argument("--n_epochs", type=int, default=1000,
+parser.add_argument("--n_epochs", type=int, default=50,
                     help="Total number of epochs")
-parser.add_argument("--epoch_size", type=int, default=50000,
+parser.add_argument("--epoch_size", type=int, default=10000,
                     help="Number of samples per epoch")
 parser.add_argument("--reload", type=str, default="",
                     help="Reload a pretrained classifier")

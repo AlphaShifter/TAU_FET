@@ -38,3 +38,8 @@ last train file is stored under 5tbk6
 
 
 /mnt/data/students/student5/TAU_FET/FaderNetworks-master/models/small_batch_train_all/abdj9hle7v/best_rec_ae.pth
+
+
+
+
+python interpolate.py --model_path models/9000_train_new2/kd5p6okl1k/best_accu_ae.pth --n_images 10 --n_interpolations 10 --alpha_min 10.0 --alpha_max 10.0 --output_path smile_roie

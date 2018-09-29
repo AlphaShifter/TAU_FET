@@ -116,15 +116,13 @@ class Trainer(object):
         bs = params.batch_size
         # batch / encode / discriminate
         batch_x1, batch_y1, batch_x2, batch_y2 = data.train_batch(bs)
-        #flipped1 = flip_attributes(batch_y1, params, 'all')
-        #flipped2 = flip_attributes(batch_y2, params, 'all')
-
-        _, dec_outputs1 = self.ae(Variable(batch_x1.data, volatile=True), batch_y1)
-        _, dec_outputs2 = self.ae(Variable(batch_x2.data, volatile=True), batch_y2)
+        
+        _, dec_outputs = self.ae(Variable(batch_x1.data, volatile=True), batch_y1)
+        _, dec_outputs_fake_attr = self.ae(Variable(batch_x1.data, volatile=True), 1 - batch_y1)
         same_real_preds = self.ptc_dis(batch_x1, batch_x1)
-        diff_real_preds = self.ptc_dis(batch_x2, batch_x1)
-        same_fake_preds = self.ptc_dis(Variable(dec_outputs1[-1].data), batch_x1)
-        diff_fake_preds = self.ptc_dis(Variable(dec_outputs2[-1].data), batch_x1)
+        #diff_real_preds = self.ptc_dis(batch_x2, batch_x1)
+        same_fake_preds = self.ptc_dis(Variable(dec_outputs[-1].data), batch_x1)
+        diff_fake_preds = self.ptc_dis(Variable(dec_outputs_fake_attr[-1].data), batch_x1)
         y_fake = Variable(torch.FloatTensor(same_real_preds.size(1))
                                .fill_(params.smooth_label).cuda())
 
@@ -132,12 +130,12 @@ class Trainer(object):
         loss = F.binary_cross_entropy(same_real_preds[0,:], 1 - y_fake)
         loss += F.binary_cross_entropy(same_real_preds[1,:], 1 - y_fake)
         
-        loss += F.binary_cross_entropy(diff_real_preds[0,:], y_fake)
-        loss += F.binary_cross_entropy(diff_real_preds[1,:], 1 - y_fake)
+        #loss += F.binary_cross_entropy(diff_real_preds[0,:], y_fake)
+        #loss += F.binary_cross_entropy(diff_real_preds[1,:], 1 - y_fake)
         
         loss += F.binary_cross_entropy(same_fake_preds[0,:], 1 - y_fake)
         loss += F.binary_cross_entropy(same_fake_preds[1,:], y_fake)
-        
+
         loss += F.binary_cross_entropy(diff_fake_preds[0,:], y_fake)
         loss += F.binary_cross_entropy(diff_fake_preds[1,:], y_fake)
         
@@ -186,6 +184,7 @@ class Trainer(object):
         # batch / encode / decode
         batch_x, batch_y, _, _ = data.train_batch(bs)
         enc_outputs, dec_outputs = self.ae(batch_x, batch_y)
+        _, dec_outputs_fake_attr = self.ae(batch_x, 1 - batch_y)
         # autoencoder loss from reconstruction
         loss = params.lambda_ae * ((batch_x - dec_outputs[-1]) ** 2).mean()
         self.stats['rec_costs'].append(loss.data[0])
@@ -194,19 +193,22 @@ class Trainer(object):
             lat_dis_preds = self.lat_dis(enc_outputs[-1 - params.n_skip])
             lat_dis_loss = get_attr_loss(lat_dis_preds, batch_y, True, params)
             loss = loss + get_lambda(params.lambda_lat_dis, params) * lat_dis_loss
-        # decoding with random labels
-        if params.lambda_ptc_dis + params.lambda_clf_dis > 0:
-            flipped = flip_attributes(batch_y, params, 'all')
-            dec_outputs_flipped = self.ae.decode(enc_outputs, flipped)
         # autoencoder loss from the patch discriminator
         if params.lambda_ptc_dis:
-            ptc_dis_preds = self.ptc_dis(dec_outputs_flipped[-1], batch_x)
-            y_fake = Variable(torch.FloatTensor(ptc_dis_preds.size())
+            ptc_dis_preds_real_attr = self.ptc_dis(dec_outputs[-1], batch_x)
+            ptc_dis_preds_fake_attr = self.ptc_dis(dec_outputs_fake_attr[-1], batch_x)
+            y_attr_fake = Variable(torch.FloatTensor(ptc_dis_preds_fake_attr.size())
                                    .fill_(params.smooth_label).cuda())
-            ptc_dis_loss = F.binary_cross_entropy(ptc_dis_preds, 1 - y_fake)
+            y_attr_real = Variable(torch.FloatTensor(ptc_dis_preds_real_attr.size())
+                                   .fill_(params.smooth_label).cuda())
+            y_attr_real[0,:] = 1 - y_attr_real[0,:]
+            ptc_dis_loss = F.binary_cross_entropy(ptc_dis_preds_real_attr, y_attr_real)
+            ptc_dis_loss += F.binary_cross_entropy(ptc_dis_preds_fake_attr, y_attr_fake)
             loss = loss + get_lambda(params.lambda_ptc_dis, params) * ptc_dis_loss
         # autoencoder loss from the classifier discriminator
         if params.lambda_clf_dis:
+            flipped = flip_attributes(batch_y, params, 'all')
+            dec_outputs_flipped = self.ae.decode(enc_outputs, flipped)
             clf_dis_preds = self.clf_dis(dec_outputs_flipped[-1])
             clf_dis_loss = get_attr_loss(clf_dis_preds, flipped, False, params)
             loss = loss + get_lambda(params.lambda_clf_dis, params) * clf_dis_loss

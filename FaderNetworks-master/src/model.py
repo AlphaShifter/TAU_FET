@@ -111,8 +111,6 @@ class AutoEncoder(nn.Module):
         bs = enc_outputs[0].size(0)
         assert len(enc_outputs) == self.n_layers + 1
         assert y.size() == (bs, self.n_attr)
-        #for i in range(len(enc_outputs)):
-        #    print enc_outputs[i].size()
         dec_outputs = [enc_outputs[-1]]
         y = y.unsqueeze(2).unsqueeze(3)
         for i, layer in enumerate(self.dec_layers):
@@ -250,7 +248,7 @@ class PatchDiscriminator(nn.Module):
         self.layers = nn.Sequential(*layers)
 
     def forward(self, x1, x2):
-        x = torch.cat((x1, x2), 1)
+        x = Variable(torch.cat((x1, x2), 1))
         assert x.dim() == 4
         x = self.layers(x)
         x = x.view(x.size(0), x.size(1), -1).mean(2).view(x.size(1), x.size(0))
